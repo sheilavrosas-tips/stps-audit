@@ -2343,7 +2343,7 @@
             buildParentChildMap: () => {
                 auditor.childrenMap = {};
 
-                // For each point, check if its text references a chapter
+                // Pass 1: Detect parent-child by "Capítulo N" in text
                 auditor.pointsMap.forEach(pt => {
                     const matches = pt.text.matchAll(/Cap[ií]tulo\s+(\d+)/gi);
                     for (const match of matches) {
@@ -2359,16 +2359,33 @@
 
                         if (children.length > 0) {
                             if (!auditor.childrenMap[parentKey]) auditor.childrenMap[parentKey] = [];
-                            // Merge avoiding duplicates
                             children.forEach(c => {
                                 if (!auditor.childrenMap[parentKey].find(x => x.id === c.id)) {
                                     auditor.childrenMap[parentKey].push(c);
-                                    // Tag child with parentId (first parent wins)
                                     if (!c.parentId) c.parentId = pt.id;
                                 }
                             });
                         }
                     }
+                });
+
+                // Pass 2: Detect parent-child by numeric ID prefix (e.g. "8.1" is parent of "8.1.1")
+                // Sort by ID length ascending so parents are processed before children
+                const sorted = [...auditor.pointsMap].sort((a, b) => a.id.length - b.id.length);
+                sorted.forEach(pt => {
+                    const parentKey = `${pt.nomId}::${pt.id}`;
+                    auditor.pointsMap.forEach(c => {
+                        if (c === pt || c.nomId !== pt.nomId) return;
+                        // c is a sub-numeral child if c.id starts with pt.id + '.'
+                        // and has exactly one more level (e.g. 8.1 -> 8.1.1, not 8.1 -> 8.1.1.2)
+                        if (c.id.startsWith(pt.id + '.') && !c.parentId) {
+                            if (!auditor.childrenMap[parentKey]) auditor.childrenMap[parentKey] = [];
+                            if (!auditor.childrenMap[parentKey].find(x => x.id === c.id)) {
+                                auditor.childrenMap[parentKey].push(c);
+                                c.parentId = pt.id;
+                            }
+                        }
+                    });
                 });
             },
 
