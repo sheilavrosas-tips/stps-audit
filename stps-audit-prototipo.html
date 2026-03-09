@@ -2089,7 +2089,18 @@
                     }]);
                 }
             },
-            getNoms: () => Store.getKey('stps_noms'),
+            getNoms: () => {
+                const noms = Store.getKey('stps_noms') || MOCK_NOMS;
+                const unique = [];
+                const seen = new Set();
+                for (const n of noms) {
+                    if (!seen.has(n.id)) {
+                        unique.push(n);
+                        seen.add(n.id);
+                    }
+                }
+                return unique;
+            },
             getAudits: () => Store.getKey('stps_audits') || [],
             saveAudit: (audit) => {
                 const audits = Store.getAudits();
@@ -2190,6 +2201,9 @@
                 const audits = Store.getAudits();
                 app.currentAudit = audits.find(a => a.id == id);
                 if (!app.currentAudit) return;
+
+                // Deduplicar noms de la auditoria en caso de errores previos
+                app.currentAudit.noms = [...new Set(app.currentAudit.noms)];
 
                 // Enable audit tabs
                 document.getElementById('nav-audit').style.display = 'block';
